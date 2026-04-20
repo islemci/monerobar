@@ -27,7 +27,7 @@ export function useNetworkData(initialData?: MoneroStats) {
         queryKey: ["network-data"],
         queryFn: fetchNetworkData,
         initialData,
-        refetchInterval: 10_000,
+        refetchInterval: 20_000,
         refetchOnWindowFocus: true,
     });
 }

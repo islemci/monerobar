@@ -12,12 +12,6 @@ function formatHashrateGh(hashrateHs: number): string {
   return `${(hashrateHs / 1_000_000_000).toFixed(2)} GH/s`;
 }
 
-function formatRelativeUpdate(updatedAt: number): string {
-  const elapsedMs = Date.now() - updatedAt;
-  const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  return `${seconds}s ago`;
-}
-
 function formatPing(pingMs: number): string {
   return `${Math.round(pingMs).toString().padStart(3, "0")}ms`;
 }
@@ -33,13 +27,13 @@ function buildAsciiBarSmall(percentage: number): string {
   return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
 }
 export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
-  const { data, isLoading, isError } = useNetworkData(initialData);
-  const [elapsed, setElapsed] = useState(0);
+  const { data, isLoading, isError, dataUpdatedAt } = useNetworkData(initialData);
+  const [nowMs, setNowMs] = useState(Date.now());
   const [openPopup, setOpenPopup] = useState<"pools" | "nodes" | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setElapsed((prev) => (prev >= 29 ? 0 : prev + 1));
+      setNowMs(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -84,8 +78,8 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       });
     }
 
-    const elapsedMs = Math.max(0, elapsed * 1000);
-    const updateSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+    const lastStatusRefreshAt = dataUpdatedAt > 0 ? dataUpdatedAt : data.updatedAt;
+    const updateSeconds = Math.max(0, Math.floor((nowMs - lastStatusRefreshAt) / 1000));
 
     return {
       height: data.network.height.toLocaleString(),
@@ -95,7 +89,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       pools: poolList,
       nodes: data.nodes,
     };
-  }, [data, elapsed]);
+  }, [data, nowMs, dataUpdatedAt]);
 
   if (isLoading && !data) {
     return (
@@ -168,6 +162,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE POOLS?</h3>
               <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
                 Mining pools are servers that coordinate the computational work of multiple miners. Individual miners contribute their computing power to the pool, and when the pool finds a valid block, the reward is distributed among all participants based on their contributed work.
+              </p>
+              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                Sometimes pool data might be inaccurate or missing due to API issues or network problems. If you notice discrepancies, please check back later or consider running your own node for the most reliable data.
               </p>
               <button
                 onClick={() => setOpenPopup(null)}
