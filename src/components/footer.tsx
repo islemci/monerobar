@@ -7,8 +7,8 @@ export function Footer() {
 
     return (
         <>
-            <footer className="mt-3 sm:mt-4 border border-white/10 rounded-none p-2 sm:p-3 text-center font-mono text-xs sm:text-sm tracking-widest">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            <div className="font-mono text-xs sm:text-sm tracking-widest">
+                <div className="flex items-center justify-end gap-2 sm:gap-4">
                     <button
                         onClick={() => setOpenPopup(openPopup === "about" ? null : "about")}
                         className="text-white hover:text-accent-monero transition-colors cursor-pointer"
@@ -30,7 +30,7 @@ export function Footer() {
                         [ DONATE ]
                     </button>
                 </div>
-            </footer>
+            </div>
 
             {openPopup === "about" && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

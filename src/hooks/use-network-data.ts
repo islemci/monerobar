@@ -3,6 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import type { MoneroStats } from "@/types/monero";
 
+const BACKEND_REFRESH_MS = 90_000;
+const FAST_POLL_MS = 2_000;
+const FALLBACK_POLL_MS = 20_000;
+
 async function fetchNetworkData(): Promise<MoneroStats> {
     const response = await fetch("/api/status", {
         method: "GET",
@@ -27,7 +31,19 @@ export function useNetworkData(initialData?: MoneroStats) {
         queryKey: ["network-data"],
         queryFn: fetchNetworkData,
         initialData,
-        refetchInterval: 20_000,
+        refetchInterval: (query) => {
+            const data = query.state.data as MoneroStats | undefined;
+
+            if (!data?.updatedAt) {
+                return FALLBACK_POLL_MS;
+            }
+
+            const ageMs = Math.max(0, Date.now() - data.updatedAt);
+            const remainingMs = BACKEND_REFRESH_MS - ageMs;
+
+            // Poll quickly once we're near/after the expected backend refresh boundary.
+            return remainingMs > FAST_POLL_MS ? remainingMs : FAST_POLL_MS;
+        },
         refetchOnWindowFocus: true,
     });
 }

@@ -12,6 +12,18 @@ function formatHashrateGh(hashrateHs: number): string {
   return `${(hashrateHs / 1_000_000_000).toFixed(2)} GH/s`;
 }
 
+function formatHashrateSmart(hashrateHs: number): string {
+  if (hashrateHs > 1_000_000_000) {
+    return `${(hashrateHs / 1_000_000_000).toFixed(2)} GH/s`;
+  }
+
+  if (hashrateHs >= 1_000_000) {
+    return `${(hashrateHs / 1_000_000).toFixed(2)} MH/s`;
+  }
+
+  return `${(hashrateHs / 1_000).toFixed(2)} KH/s`;
+}
+
 function formatPing(pingMs: number): string {
   return `${Math.round(pingMs).toString().padStart(3, "0")}ms`;
 }
@@ -27,9 +39,10 @@ function buildAsciiBarSmall(percentage: number): string {
   return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
 }
 export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
-  const { data, isLoading, isError, dataUpdatedAt } = useNetworkData(initialData);
+  const { data, isLoading, isError } = useNetworkData(initialData);
   const [nowMs, setNowMs] = useState(Date.now());
   const [openPopup, setOpenPopup] = useState<"pools" | "nodes" | null>(null);
+  const [popupTab, setPopupTab] = useState<"info" | "list">("info");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -67,7 +80,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       const otherHashrate = otherPools.reduce((sum, p) => sum + p.hashrate, 0);
 
       poolList.push({
-        name: "Other",
+        name: "Others",
         homeUrl: "",
         apiUrl: "",
         hashrate: otherHashrate,
@@ -78,8 +91,8 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       });
     }
 
-    const lastStatusRefreshAt = dataUpdatedAt > 0 ? dataUpdatedAt : data.updatedAt;
-    const updateSeconds = Math.max(0, Math.floor((nowMs - lastStatusRefreshAt) / 1000));
+    const updateSeconds = Math.max(0, Math.floor((nowMs - data.updatedAt) / 1000));
+    const onlineNodes = data.nodes.filter((node) => node.status.toUpperCase() === "ONLINE");
 
     return {
       height: data.network.height.toLocaleString(),
@@ -87,9 +100,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       hashrate: formatHashrateGh(data.network.hashrate),
       updatedAgo: `${updateSeconds}s ago`,
       pools: poolList,
-      nodes: data.nodes,
+      nodes: onlineNodes,
     };
-  }, [data, nowMs, dataUpdatedAt]);
+  }, [data, nowMs]);
 
   if (isLoading && !data) {
     return (
@@ -133,7 +146,13 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         <div className="mb-2 flex items-center gap-1">
           <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">POOLS</p>
           <button
-            onClick={() => setOpenPopup(openPopup === "pools" ? null : "pools")}
+            onClick={() => {
+              const nextPopup = openPopup === "pools" ? null : "pools";
+              setOpenPopup(nextPopup);
+              if (nextPopup) {
+                setPopupTab("info");
+              }
+            }}
             className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
             aria-label="Info about pools"
           >
@@ -159,13 +178,55 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         {openPopup === "pools" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="border border-white/20 rounded-none bg-black p-4 sm:p-6 max-w-sm w-full">
-              <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE POOLS?</h3>
-              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                Mining pools are servers that coordinate the computational work of multiple miners. Individual miners contribute their computing power to the pool, and when the pool finds a valid block, the reward is distributed among all participants based on their contributed work.
-              </p>
-              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                Sometimes pool data might be inaccurate or missing due to API issues or network problems. If you notice discrepancies, please check back later or consider running your own node for the most reliable data.
-              </p>
+              <div className="mb-3 flex border border-white/20">
+                <button
+                  onClick={() => setPopupTab("info")}
+                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  INFO
+                </button>
+                <button
+                  onClick={() => setPopupTab("list")}
+                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  LIST
+                </button>
+              </div>
+
+              {popupTab === "info" ? (
+                <>
+                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE POOLS?</h3>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                    Mining pools are servers that coordinate the computational work of multiple miners. Individual miners contribute their computing power to the pool, and when the pool finds a valid block, the reward is distributed among all participants based on their contributed work.
+                  </p>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                    Sometimes pool data might be inaccurate or missing due to API issues or network problems. If you notice discrepancies, please check back later or consider running your own node for the most reliable data.
+                  </p>
+                </>
+              ) : (
+                <div className="mb-4">
+                  <div className="grid grid-cols-[1fr_10ch_12ch] gap-2 border-b border-white/10 pb-1 text-zinc-400 text-xs sm:text-sm tracking-widest">
+                    <p>NAME</p>
+                    <p>STATUS</p>
+                    <p className="text-right">HASHRATE</p>
+                  </div>
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1">
+                    {(data?.pools ?? []).map((pool) => (
+                      <div key={pool.name} className="grid grid-cols-[1fr_10ch_12ch] gap-2 text-xs sm:text-sm">
+                        <p className="truncate">{pool.name}</p>
+                        <p className="text-zinc-300 truncate">{pool.status.toUpperCase()}</p>
+                        <p className="text-right text-zinc-400">{formatHashrateSmart(pool.hashrate)}</p>
+                      </div>
+                    ))}
+                    {(data?.pools ?? []).length === 0 && (
+                      <p className="text-zinc-500 text-xs sm:text-sm">NO POOLS AVAILABLE</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setOpenPopup(null)}
                 className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
@@ -221,7 +282,13 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         <div className="mb-2 flex items-center gap-1">
           <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">NODES</p>
           <button
-            onClick={() => setOpenPopup(openPopup === "nodes" ? null : "nodes")}
+            onClick={() => {
+              const nextPopup = openPopup === "nodes" ? null : "nodes";
+              setOpenPopup(nextPopup);
+              if (nextPopup) {
+                setPopupTab("info");
+              }
+            }}
             className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
             aria-label="Info about nodes"
           >
@@ -247,10 +314,57 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         {openPopup === "nodes" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="border border-white/20 rounded-none bg-black p-4 sm:p-6 max-w-sm w-full">
-              <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE NODES?</h3>
-              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                Nodes are computers running the full Monero blockchain. They validate transactions, maintain a complete copy of the ledger, and relay information across the network. A healthy node is essential for network security and transaction verification.
-              </p>
+              <div className="mb-3 flex border border-white/20">
+                <button
+                  onClick={() => setPopupTab("info")}
+                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  INFO
+                </button>
+                <button
+                  onClick={() => setPopupTab("list")}
+                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  LIST
+                </button>
+              </div>
+
+              {popupTab === "info" ? (
+                <>
+                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE NODES?</h3>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                    Nodes are computers running the full Monero blockchain. They validate transactions, maintain a complete copy of the ledger, and relay information across the network. A healthy node is essential for network security and transaction verification.
+                  </p>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                    Node status may be affected by network issues, maintenance, or other factors. If you see a node marked as offline, it may be temporary. For the most accurate and up-to-date information, consider running your own node or checking multiple sources.
+                  </p>
+                </>
+              ) : (
+                <div className="mb-4">
+                  <div className="grid grid-cols-[1fr_10ch_8ch] gap-2 border-b border-white/10 pb-1 text-zinc-400 text-xs sm:text-sm tracking-widest">
+                    <p>NAME</p>
+                    <p>STATUS</p>
+                    <p className="text-right">PING</p>
+                  </div>
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1">
+                    {(data?.nodes ?? []).map((node) => (
+                      <div key={node.name} className="grid grid-cols-[1fr_10ch_8ch] gap-2 text-xs sm:text-sm">
+                        <p className="truncate">{node.name}</p>
+                        <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online truncate" : "text-status-offline truncate"}>
+                          {node.status.toUpperCase()}
+                        </p>
+                        <p className="text-right">{formatPing(node.pingMs)}</p>
+                      </div>
+                    ))}
+                    {(data?.nodes ?? []).length === 0 && (
+                      <p className="text-zinc-500 text-xs sm:text-sm">NO NODES AVAILABLE</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setOpenPopup(null)}
                 className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
