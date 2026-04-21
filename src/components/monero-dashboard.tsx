@@ -1,12 +1,24 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNetworkData } from "@/hooks/use-network-data";
 import type { MoneroStats } from "@/types/monero";
 
 interface MoneroDashboardProps {
   initialData?: MoneroStats;
 }
+
+interface CustomTrackedNode {
+  id: string;
+  name: string;
+  url: string;
+  status: string;
+  pingMs: number;
+  height: number;
+  lastCheckedAt: number;
+}
+
+const CUSTOM_NODES_STORAGE_KEY = "monerobar:custom-tracked-nodes";
 
 function formatHashrateGh(hashrateHs: number): string {
   return `${(hashrateHs / 1_000_000_000).toFixed(2)} GH/s`;
@@ -28,6 +40,32 @@ function formatPing(pingMs: number): string {
   return `${Math.round(pingMs).toString().padStart(3, "0")}ms`;
 }
 
+function normalizeNodeUrl(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    parsed.hash = "";
+    parsed.search = "";
+    parsed.pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
 function buildAsciiBar(percentage: number): string {
   const total = 20;
   const filled = Math.max(0, Math.min(total, Math.round((percentage / 100) * total)));
@@ -39,10 +77,163 @@ function buildAsciiBarSmall(percentage: number): string {
   return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
 }
 export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
-  const { data, isLoading, isError } = useNetworkData(initialData);
+  const { data, isLoading, isError, dataUpdatedAt } = useNetworkData(initialData);
   const [nowMs, setNowMs] = useState(Date.now());
   const [openPopup, setOpenPopup] = useState<"pools" | "nodes" | null>(null);
   const [popupTab, setPopupTab] = useState<"info" | "list">("info");
+  const [customNodes, setCustomNodes] = useState<CustomTrackedNode[]>([]);
+  const [armedDeleteNodeId, setArmedDeleteNodeId] = useState<string | null>(null);
+  const [newNodeName, setNewNodeName] = useState("");
+  const [newNodeUrl, setNewNodeUrl] = useState("");
+  const [customNodeError, setCustomNodeError] = useState<string | null>(null);
+  const customNodesRef = useRef<CustomTrackedNode[]>([]);
+
+  const checkCustomNode = async (url: string): Promise<{ status: string; pingMs: number; height: number }> => {
+    const REQUEST_TIMEOUT_MS = 8_000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const startedAt = Date.now();
+
+    try {
+      const candidates = (() => {
+        try {
+          const parsed = new URL(url);
+          if (!parsed.pathname || parsed.pathname === "/") {
+            return [`${url}/get_info`, url];
+          }
+          return [url];
+        } catch {
+          return [url];
+        }
+      })();
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(candidate, {
+            method: "GET",
+            cache: "no-store",
+            redirect: "follow",
+            signal: controller.signal,
+          });
+
+          const pingMs = Math.max(0, Date.now() - startedAt);
+          let height = 0;
+
+          if (response.ok && candidate.endsWith("/get_info")) {
+            try {
+              const data = (await response.json()) as { height?: number };
+              height = Math.max(0, Number(data.height ?? 0));
+            } catch {
+              // Fallback to 0 if JSON parsing fails
+            }
+          }
+
+          return {
+            status: "ONLINE",
+            pingMs,
+            height,
+          };
+        } catch {
+          // Try next candidate
+        }
+      }
+
+      return {
+        status: "OFFLINE",
+        pingMs: 0,
+        height: 0,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const handleRemoveCustomNode = (nodeId: string) => {
+    setArmedDeleteNodeId((current) => (current === nodeId ? null : current));
+    setCustomNodes((previous) => previous.filter((node) => node.id !== nodeId));
+  };
+
+  const handleCustomNodeNameClick = (nodeId: string) => {
+    if (armedDeleteNodeId === nodeId) {
+      handleRemoveCustomNode(nodeId);
+      return;
+    }
+
+    setArmedDeleteNodeId(nodeId);
+  };
+
+  const handleAddCustomNode = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCustomNodeError(null);
+
+    const trimmedName = newNodeName.trim();
+
+    if (!trimmedName) {
+      setCustomNodeError("NAME IS REQUIRED");
+      return;
+    }
+
+    const normalizedUrl = normalizeNodeUrl(newNodeUrl);
+
+    if (!normalizedUrl) {
+      setCustomNodeError("INVALID NODE URL");
+      return;
+    }
+
+    if (customNodes.some((node) => node.url === normalizedUrl)) {
+      setCustomNodeError("NODE ALREADY TRACKED");
+      return;
+    }
+
+    const nodeId = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const nodeName = trimmedName;
+
+    const nextNode: CustomTrackedNode = {
+      id: nodeId,
+      name: nodeName,
+      url: normalizedUrl,
+      status: "CHECKING",
+      pingMs: 0,
+      height: 0,
+      lastCheckedAt: Date.now(),
+    };
+
+    setCustomNodes((previous) => [...previous, nextNode]);
+    setNewNodeName("");
+    setNewNodeUrl("");
+
+    try {
+      const result = await checkCustomNode(normalizedUrl);
+
+      setCustomNodes((previous) =>
+        previous.map((node) =>
+          node.id === nodeId
+            ? {
+              ...node,
+              status: result.status,
+              pingMs: result.pingMs,
+              height: result.height,
+              lastCheckedAt: Date.now(),
+            }
+            : node,
+        ),
+      );
+    } catch {
+      setCustomNodes((previous) =>
+        previous.map((node) =>
+          node.id === nodeId
+            ? {
+              ...node,
+              status: "OFFLINE",
+              pingMs: 0,
+              height: 0,
+              lastCheckedAt: Date.now(),
+            }
+            : node,
+        ),
+      );
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -51,6 +242,114 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CUSTOM_NODES_STORAGE_KEY);
+
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as CustomTrackedNode[];
+
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      const restored = parsed
+        .map((node) => {
+          const normalizedUrl = normalizeNodeUrl(String(node.url ?? ""));
+
+          if (!normalizedUrl) {
+            return null;
+          }
+
+          return {
+            id: String(node.id ?? `custom-${Math.random().toString(36).slice(2, 8)}`),
+            name: String(node.name ?? "CUSTOM NODE"),
+            url: normalizedUrl,
+            status: String(node.status ?? "OFFLINE").toUpperCase(),
+            pingMs: Math.max(0, Number(node.pingMs ?? 0)),
+            height: Math.max(0, Number(node.height ?? 0)),
+            lastCheckedAt: Math.max(0, Number(node.lastCheckedAt ?? 0)),
+          };
+        })
+        .filter((node): node is CustomTrackedNode => node !== null);
+
+      setCustomNodes(restored);
+    } catch {
+      setCustomNodes([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    customNodesRef.current = customNodes;
+    localStorage.setItem(CUSTOM_NODES_STORAGE_KEY, JSON.stringify(customNodes));
+  }, [customNodes]);
+
+  useEffect(() => {
+    if (!dataUpdatedAt || customNodesRef.current.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const refreshTrackedNodes = async () => {
+      const snapshot = [...customNodesRef.current];
+      const results = await Promise.all(
+        snapshot.map(async (node) => {
+          try {
+            const result = await checkCustomNode(node.url);
+
+            return {
+              id: node.id,
+              status: result.status,
+              pingMs: result.pingMs,
+              height: result.height,
+            };
+          } catch {
+            return {
+              id: node.id,
+              status: "OFFLINE",
+              pingMs: 0,
+              height: 0,
+            };
+          }
+        }),
+      );
+
+      if (isCancelled) {
+        return;
+      }
+
+      const resultById = new Map(results.map((entry) => [entry.id, entry]));
+
+      setCustomNodes((previous) =>
+        previous.map((node) => {
+          const next = resultById.get(node.id);
+
+          if (!next) {
+            return node;
+          }
+
+          return {
+            ...node,
+            status: next.status,
+            pingMs: next.pingMs,
+            height: next.height,
+            lastCheckedAt: Date.now(),
+          };
+        }),
+      );
+    };
+
+    void refreshTrackedNodes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dataUpdatedAt]);
 
   const view = useMemo(() => {
     if (!data) {
@@ -93,6 +392,8 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
     const updateSeconds = Math.max(0, Math.floor((nowMs - data.updatedAt) / 1000));
     const onlineNodes = data.nodes.filter((node) => node.status.toUpperCase() === "ONLINE");
+    const onlineCustomNodes = customNodes.filter((node) => node.status.toUpperCase() === "ONLINE");
+    const mergedOnlineNodes = [...onlineNodes, ...onlineCustomNodes];
 
     return {
       height: data.network.height.toLocaleString(),
@@ -100,9 +401,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       hashrate: formatHashrateGh(data.network.hashrate),
       updatedAgo: `${updateSeconds}s ago`,
       pools: poolList,
-      nodes: onlineNodes,
+      nodes: mergedOnlineNodes,
     };
-  }, [data, nowMs]);
+  }, [data, nowMs, customNodes]);
 
   if (isLoading && !data) {
     return (
@@ -343,22 +644,68 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                 </>
               ) : (
                 <div className="mb-4">
+                  <form onSubmit={handleAddCustomNode} className="mb-3 space-y-2 border border-white/10 p-2">
+                    <p className="text-zinc-400 text-xs tracking-widest">TRACK YOUR OWN NODE</p>
+                    <input
+                      value={newNodeName}
+                      onChange={(event) => setNewNodeName(event.target.value)}
+                      placeholder="NAME (E.G. Mullvad)"
+                      className="w-full border border-white/20 bg-black px-2 py-1 text-xs sm:text-sm outline-none focus:border-white/40"
+                    />
+                    <input
+                      value={newNodeUrl}
+                      onChange={(event) => setNewNodeUrl(event.target.value)}
+                      placeholder="NODE URL (E.G. node.example.com:18081)"
+                      className="w-full border border-white/20 bg-black px-2 py-1 text-xs sm:text-sm outline-none focus:border-white/40"
+                    />
+                    {customNodeError && <p className="text-status-offline text-xs">[!] {customNodeError}</p>}
+                    <p className="text-zinc-500 text-xs">CORS should be disabled on the node to connect.</p>
+                    <button
+                      type="submit"
+                      className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
+                    >
+                      ADD NODE
+                    </button>
+                  </form>
+
                   <div className="grid grid-cols-[1fr_10ch_8ch] gap-2 border-b border-white/10 pb-1 text-zinc-400 text-xs sm:text-sm tracking-widest">
                     <p>NAME</p>
                     <p>STATUS</p>
                     <p className="text-right">PING</p>
                   </div>
-                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1">
-                    {(data?.nodes ?? []).map((node) => (
-                      <div key={node.name} className="grid grid-cols-[1fr_10ch_8ch] gap-2 text-xs sm:text-sm">
-                        <p className="truncate">{node.name}</p>
-                        <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online truncate" : "text-status-offline truncate"}>
-                          {node.status.toUpperCase()}
-                        </p>
-                        <p className="text-right">{formatPing(node.pingMs)}</p>
-                      </div>
-                    ))}
-                    {(data?.nodes ?? []).length === 0 && (
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1" onClick={() => setArmedDeleteNodeId(null)}>
+                    {[...(data?.nodes ?? []), ...customNodes].map((node) => {
+                      const isCustom = "id" in node;
+                      const nodeId = isCustom ? node.id : null;
+                      const isArmedForDelete = isCustom && armedDeleteNodeId === nodeId;
+
+                      return (
+                        <div key={nodeId ?? `api-${node.url}-${node.name}`} className={`grid grid-cols-[1fr_10ch_8ch] gap-2 text-xs sm:text-sm items-center transition-all ${isArmedForDelete ? "rounded-sm bg-status-offline/15 shadow-[0_0_0_1px_rgba(239,68,68,0.75),0_0_14px_rgba(239,68,68,0.45)]" : ""}`}>
+                          {isCustom && nodeId ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleCustomNodeNameClick(nodeId);
+                              }}
+                              className={`truncate text-left transition-colors ${isArmedForDelete
+                                ? "text-status-offline"
+                                : "hover:text-status-offline"
+                                }`}
+                            >
+                              {node.name}
+                            </button>
+                          ) : (
+                            <p className="truncate">{node.name}</p>
+                          )}
+                          <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online truncate" : "text-status-offline truncate"}>
+                            {node.status.toUpperCase()}
+                          </p>
+                          <p className="text-right">{formatPing(node.pingMs)}</p>
+                        </div>
+                      );
+                    })}
+                    {((data?.nodes ?? []).length === 0 && customNodes.length === 0) && (
                       <p className="text-zinc-500 text-xs sm:text-sm">NO NODES AVAILABLE</p>
                     )}
                   </div>
@@ -398,7 +745,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <p className="text-zinc-400">HEIGHT:</p>
-                <p>{node.height.toLocaleString()}</p>
+                <p>{"height" in node ? node.height.toLocaleString() : "N/A"}</p>
               </div>
             </div>
           ))}
@@ -410,7 +757,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                   [ {node.status.toUpperCase()} ]
                 </p>
                 <p className="text-right">{formatPing(node.pingMs)}</p>
-                <p className="text-right">{node.height.toLocaleString()}</p>
+                <p className="text-right">{"height" in node ? node.height.toLocaleString() : "N/A"}</p>
               </div>
             ))}
           </div>
