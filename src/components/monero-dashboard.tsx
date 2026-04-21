@@ -40,6 +40,60 @@ function formatPing(pingMs: number): string {
   return `${Math.round(pingMs).toString().padStart(3, "0")}ms`;
 }
 
+function formatUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatCompactUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatSignedPercent(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+function formatElapsedAgo(fromIso: string, nowMs: number): string {
+  if (!fromIso) {
+    return "N/A";
+  }
+
+  const sourceMs = Date.parse(fromIso);
+
+  if (!Number.isFinite(sourceMs)) {
+    return "N/A";
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - sourceMs) / 1000));
+  const days = Math.floor(elapsedSeconds / 86_400);
+  const hours = Math.floor((elapsedSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((elapsedSeconds % 3_600) / 60);
+  const seconds = elapsedSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h ago`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ago`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s ago`;
+  }
+
+  return `${seconds}s ago`;
+}
+
 function normalizeNodeUrl(value: string): string | null {
   const trimmed = value.trim();
 
@@ -47,7 +101,9 @@ function normalizeNodeUrl(value: string): string | null {
     return null;
   }
 
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
 
   try {
     const parsed = new URL(withProtocol);
@@ -58,7 +114,8 @@ function normalizeNodeUrl(value: string): string | null {
 
     parsed.hash = "";
     parsed.search = "";
-    parsed.pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+    parsed.pathname =
+      parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
 
     return parsed.toString().replace(/\/$/, "");
   } catch {
@@ -68,27 +125,40 @@ function normalizeNodeUrl(value: string): string | null {
 
 function buildAsciiBar(percentage: number): string {
   const total = 20;
-  const filled = Math.max(0, Math.min(total, Math.round((percentage / 100) * total)));
+  const filled = Math.max(
+    0,
+    Math.min(total, Math.round((percentage / 100) * total)),
+  );
   return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
 }
 function buildAsciiBarSmall(percentage: number): string {
   const total = 8;
-  const filled = Math.max(0, Math.min(total, Math.round((percentage / 100) * total)));
+  const filled = Math.max(
+    0,
+    Math.min(total, Math.round((percentage / 100) * total)),
+  );
   return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
 }
 export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
-  const { data, isLoading, isError, dataUpdatedAt } = useNetworkData(initialData);
-  const [nowMs, setNowMs] = useState(Date.now());
-  const [openPopup, setOpenPopup] = useState<"pools" | "nodes" | null>(null);
+  const { data, isLoading, isError, dataUpdatedAt } =
+    useNetworkData(initialData);
+  const [nowMs, setNowMs] = useState(() => initialData?.updatedAt ?? 0);
+  const [openPopup, setOpenPopup] = useState<
+    "pools" | "nodes" | "status" | null
+  >(null);
   const [popupTab, setPopupTab] = useState<"info" | "list">("info");
   const [customNodes, setCustomNodes] = useState<CustomTrackedNode[]>([]);
-  const [armedDeleteNodeId, setArmedDeleteNodeId] = useState<string | null>(null);
+  const [armedDeleteNodeId, setArmedDeleteNodeId] = useState<string | null>(
+    null,
+  );
   const [newNodeName, setNewNodeName] = useState("");
   const [newNodeUrl, setNewNodeUrl] = useState("");
   const [customNodeError, setCustomNodeError] = useState<string | null>(null);
   const customNodesRef = useRef<CustomTrackedNode[]>([]);
 
-  const checkCustomNode = async (url: string): Promise<{ status: string; pingMs: number; height: number }> => {
+  const checkCustomNode = async (
+    url: string,
+  ): Promise<{ status: string; pingMs: number; height: number }> => {
     const REQUEST_TIMEOUT_MS = 8_000;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -162,7 +232,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
     setArmedDeleteNodeId(nodeId);
   };
 
-  const handleAddCustomNode = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleAddCustomNode = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     setCustomNodeError(null);
 
@@ -244,6 +316,12 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
   }, []);
 
   useEffect(() => {
+    if (data?.updatedAt) {
+      setNowMs(Date.now());
+    }
+  }, [data?.updatedAt]);
+
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(CUSTOM_NODES_STORAGE_KEY);
 
@@ -266,7 +344,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
           }
 
           return {
-            id: String(node.id ?? `custom-${Math.random().toString(36).slice(2, 8)}`),
+            id: String(
+              node.id ?? `custom-${Math.random().toString(36).slice(2, 8)}`,
+            ),
             name: String(node.name ?? "CUSTOM NODE"),
             url: normalizedUrl,
             status: String(node.status ?? "OFFLINE").toUpperCase(),
@@ -362,7 +442,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
     const poolList = topPools.map((pool) => {
       const percentage =
-        data.network.hashrate > 0 ? (pool.hashrate / data.network.hashrate) * 100 : 0;
+        data.network.hashrate > 0
+          ? (pool.hashrate / data.network.hashrate) * 100
+          : 0;
 
       return {
         ...pool,
@@ -390,10 +472,18 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       });
     }
 
-    const updateSeconds = Math.max(0, Math.floor((nowMs - data.updatedAt) / 1000));
-    const onlineNodes = data.nodes.filter((node) => node.status.toUpperCase() === "ONLINE");
-    const onlineCustomNodes = customNodes.filter((node) => node.status.toUpperCase() === "ONLINE");
+    const updateSeconds = Math.max(
+      0,
+      Math.floor((nowMs - data.updatedAt) / 1000),
+    );
+    const onlineNodes = data.nodes.filter(
+      (node) => node.status.toUpperCase() === "ONLINE",
+    );
+    const onlineCustomNodes = customNodes.filter(
+      (node) => node.status.toUpperCase() === "ONLINE",
+    );
     const mergedOnlineNodes = [...onlineNodes, ...onlineCustomNodes];
+    const info = data.info;
 
     return {
       height: data.network.height.toLocaleString(),
@@ -402,6 +492,21 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       updatedAgo: `${updateSeconds}s ago`,
       pools: poolList,
       nodes: mergedOnlineNodes,
+      xmrStatus: info
+        ? {
+          symbol: info.asset.symbol.toUpperCase(),
+          name: info.asset.name,
+          priceUsd: formatUsd(info.market.priceUsd),
+          change24hPct: info.market.priceChange24hPct,
+          change30dPct: info.market.priceChange30dPct,
+          marketCapUsd: formatCompactUsd(info.market.marketCapUsd),
+          volume24hUsd: formatCompactUsd(info.market.totalVolumeUsd),
+          circulatingSupply: Math.floor(
+            info.supply.circulating,
+          ).toLocaleString(),
+          updatedAtAgo: formatElapsedAgo(info.sourceUpdatedAt, nowMs),
+        }
+        : null,
     };
   }, [data, nowMs, customNodes]);
 
@@ -430,7 +535,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       <section className="border border-white/10 rounded-none p-2 sm:p-4">
         <div className="grid grid-cols-1 sm:grid-cols-[14ch_1fr] gap-y-1 gap-x-2">
           <p className="tracking-widest text-zinc-400">BLOCK_HEIGHT:</p>
-          <p className="text-right sm:text-right text-accent-monero">{view.height}</p>
+          <p className="text-right sm:text-right text-accent-monero">
+            {view.height}
+          </p>
 
           <p className="tracking-widest text-zinc-400">DIFFICULTY:</p>
           <p className="text-right sm:text-right">{view.difficulty}</p>
@@ -445,7 +552,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
       <section className="border border-white/10 rounded-none p-2 sm:p-4">
         <div className="mb-2 flex items-center gap-1">
-          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">POOLS</p>
+          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
+            POOLS
+          </p>
           <button
             onClick={() => {
               const nextPopup = openPopup === "pools" ? null : "pools";
@@ -482,14 +591,18 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               <div className="mb-3 flex border border-white/20">
                 <button
                   onClick={() => setPopupTab("info")}
-                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
                     }`}
                 >
                   INFO
                 </button>
                 <button
                   onClick={() => setPopupTab("list")}
-                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
                     }`}
                 >
                   LIST
@@ -498,12 +611,21 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
               {popupTab === "info" ? (
                 <>
-                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE POOLS?</h3>
+                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">
+                    WHAT ARE POOLS?
+                  </h3>
                   <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                    Mining pools are servers that coordinate the computational work of multiple miners. Individual miners contribute their computing power to the pool, and when the pool finds a valid block, the reward is distributed among all participants based on their contributed work.
+                    Mining pools are servers that coordinate the computational
+                    work of multiple miners. Individual miners contribute their
+                    computing power to the pool, and when the pool finds a valid
+                    block, the reward is distributed among all participants
+                    based on their contributed work.
                   </p>
                   <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                    Sometimes pool data might be inaccurate or missing due to API issues or network problems. If you notice discrepancies, please check back later or consider running your own node for the most reliable data.
+                    Sometimes pool data might be inaccurate or missing due to
+                    API issues or network problems. If you notice discrepancies,
+                    please check back later or consider running your own node
+                    for the most reliable data.
                   </p>
                 </>
               ) : (
@@ -515,14 +637,23 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                   </div>
                   <div className="mt-2 max-h-56 overflow-y-auto space-y-1">
                     {(data?.pools ?? []).map((pool) => (
-                      <div key={pool.name} className="grid grid-cols-[1fr_10ch_12ch] gap-2 text-xs sm:text-sm">
+                      <div
+                        key={pool.name}
+                        className="grid grid-cols-[1fr_10ch_12ch] gap-2 text-xs sm:text-sm"
+                      >
                         <p className="truncate">{pool.name}</p>
-                        <p className="text-zinc-300 truncate">{pool.status.toUpperCase()}</p>
-                        <p className="text-right text-zinc-400">{formatHashrateSmart(pool.hashrate)}</p>
+                        <p className="text-zinc-300 truncate">
+                          {pool.status.toUpperCase()}
+                        </p>
+                        <p className="text-right text-zinc-400">
+                          {formatHashrateSmart(pool.hashrate)}
+                        </p>
                       </div>
                     ))}
                     {(data?.pools ?? []).length === 0 && (
-                      <p className="text-zinc-500 text-xs sm:text-sm">NO POOLS AVAILABLE</p>
+                      <p className="text-zinc-500 text-xs sm:text-sm">
+                        NO POOLS AVAILABLE
+                      </p>
                     )}
                   </div>
                 </div>
@@ -540,7 +671,10 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
         <div className="grid gap-2 sm:gap-1">
           {view.pools.map((pool) => (
-            <div key={pool.name} className="block sm:grid sm:grid-cols-[18ch_1fr_8ch] sm:items-center sm:gap-2">
+            <div
+              key={pool.name}
+              className="block sm:grid sm:grid-cols-[18ch_1fr_8ch] sm:items-center sm:gap-2"
+            >
               {pool.homeUrl ? (
                 <a
                   href={pool.homeUrl}
@@ -548,7 +682,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                   rel="noopener noreferrer"
                   className="group inline-flex max-w-full items-center gap-1 text-xs sm:text-sm"
                 >
-                  <span className="truncate group-hover:underline">{pool.name}</span>
+                  <span className="truncate group-hover:underline">
+                    {pool.name}
+                  </span>
                   <span className="inline-flex h-3 w-3 items-center justify-center border-b border-transparent group-hover:border-current">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -569,11 +705,17 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                   </span>
                 </a>
               ) : (
-                <span className="block truncate text-xs sm:text-sm">{pool.name}</span>
+                <span className="block truncate text-xs sm:text-sm">
+                  {pool.name}
+                </span>
               )}
-              <span className="text-zinc-400 sm:hidden block mt-1">{pool.barSmall}</span>
+              <span className="text-zinc-400 sm:hidden block mt-1">
+                {pool.barSmall}
+              </span>
               <span className="text-zinc-400 hidden sm:block">{pool.bar}</span>
-              <span className="text-right text-white text-xs sm:text-sm block mt-1 sm:mt-0">{pool.percentage.toFixed(1)}%</span>
+              <span className="text-right text-white text-xs sm:text-sm block mt-1 sm:mt-0">
+                {pool.percentage.toFixed(1)}%
+              </span>
             </div>
           ))}
         </div>
@@ -581,7 +723,9 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
       <section className="border border-white/10 rounded-none p-2 sm:p-4">
         <div className="mb-2 flex items-center gap-1">
-          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">NODES</p>
+          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
+            NODES
+          </p>
           <button
             onClick={() => {
               const nextPopup = openPopup === "nodes" ? null : "nodes";
@@ -618,14 +762,18 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               <div className="mb-3 flex border border-white/20">
                 <button
                   onClick={() => setPopupTab("info")}
-                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
                     }`}
                 >
                   INFO
                 </button>
                 <button
                   onClick={() => setPopupTab("list")}
-                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list" ? "bg-white/10 text-accent-monero" : "text-zinc-400 hover:bg-white/5"
+                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
                     }`}
                 >
                   LIST
@@ -634,18 +782,33 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
               {popupTab === "info" ? (
                 <>
-                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">WHAT ARE NODES?</h3>
+                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">
+                    WHAT ARE NODES?
+                  </h3>
                   <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                    Nodes are computers running the full Monero blockchain. They validate transactions, maintain a complete copy of the ledger, and relay information across the network. A healthy node is essential for network security and transaction verification.
+                    Nodes are computers running the full Monero blockchain. They
+                    validate transactions, maintain a complete copy of the
+                    ledger, and relay information across the network. A healthy
+                    node is essential for network security and transaction
+                    verification.
                   </p>
                   <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
-                    Node status may be affected by network issues, maintenance, or other factors. If you see a node marked as offline, it may be temporary. For the most accurate and up-to-date information, consider running your own node or checking multiple sources.
+                    Node status may be affected by network issues, maintenance,
+                    or other factors. If you see a node marked as offline, it
+                    may be temporary. For the most accurate and up-to-date
+                    information, consider running your own node or checking
+                    multiple sources.
                   </p>
                 </>
               ) : (
                 <div className="mb-4">
-                  <form onSubmit={handleAddCustomNode} className="mb-3 space-y-2 border border-white/10 p-2">
-                    <p className="text-zinc-400 text-xs tracking-widest">TRACK YOUR OWN NODE</p>
+                  <form
+                    onSubmit={handleAddCustomNode}
+                    className="mb-3 space-y-2 border border-white/10 p-2"
+                  >
+                    <p className="text-zinc-400 text-xs tracking-widest">
+                      TRACK YOUR OWN NODE
+                    </p>
                     <input
                       value={newNodeName}
                       onChange={(event) => setNewNodeName(event.target.value)}
@@ -658,8 +821,14 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                       placeholder="NODE URL (E.G. node.example.com:18081)"
                       className="w-full border border-white/20 bg-black px-2 py-1 text-xs sm:text-sm outline-none focus:border-white/40"
                     />
-                    {customNodeError && <p className="text-status-offline text-xs">[!] {customNodeError}</p>}
-                    <p className="text-zinc-500 text-xs">CORS should be disabled on the node to connect.</p>
+                    {customNodeError && (
+                      <p className="text-status-offline text-xs">
+                        [!] {customNodeError}
+                      </p>
+                    )}
+                    <p className="text-zinc-500 text-xs">
+                      CORS should be disabled on the node to connect.
+                    </p>
                     <button
                       type="submit"
                       className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
@@ -673,14 +842,21 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                     <p>STATUS</p>
                     <p className="text-right">PING</p>
                   </div>
-                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1" onClick={() => setArmedDeleteNodeId(null)}>
+                  <div
+                    className="mt-2 max-h-56 overflow-y-auto space-y-1"
+                    onClick={() => setArmedDeleteNodeId(null)}
+                  >
                     {[...(data?.nodes ?? []), ...customNodes].map((node) => {
                       const isCustom = "id" in node;
                       const nodeId = isCustom ? node.id : null;
-                      const isArmedForDelete = isCustom && armedDeleteNodeId === nodeId;
+                      const isArmedForDelete =
+                        isCustom && armedDeleteNodeId === nodeId;
 
                       return (
-                        <div key={nodeId ?? `api-${node.url}-${node.name}`} className={`grid grid-cols-[1fr_10ch_8ch] gap-2 text-xs sm:text-sm items-center transition-all ${isArmedForDelete ? "rounded-sm bg-status-offline/15 shadow-[0_0_0_1px_rgba(239,68,68,0.75),0_0_14px_rgba(239,68,68,0.45)]" : ""}`}>
+                        <div
+                          key={nodeId ?? `api-${node.url}-${node.name}`}
+                          className={`grid grid-cols-[1fr_10ch_8ch] gap-2 text-xs sm:text-sm items-center transition-all ${isArmedForDelete ? "rounded-sm bg-status-offline/15 shadow-[0_0_0_1px_rgba(239,68,68,0.75),0_0_14px_rgba(239,68,68,0.45)]" : ""}`}
+                        >
                           {isCustom && nodeId ? (
                             <button
                               type="button"
@@ -698,16 +874,27 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                           ) : (
                             <p className="truncate">{node.name}</p>
                           )}
-                          <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online truncate" : "text-status-offline truncate"}>
+                          <p
+                            className={
+                              node.status.toUpperCase() === "ONLINE"
+                                ? "text-status-online truncate"
+                                : "text-status-offline truncate"
+                            }
+                          >
                             {node.status.toUpperCase()}
                           </p>
-                          <p className="text-right">{formatPing(node.pingMs)}</p>
+                          <p className="text-right">
+                            {formatPing(node.pingMs)}
+                          </p>
                         </div>
                       );
                     })}
-                    {((data?.nodes ?? []).length === 0 && customNodes.length === 0) && (
-                      <p className="text-zinc-500 text-xs sm:text-sm">NO NODES AVAILABLE</p>
-                    )}
+                    {(data?.nodes ?? []).length === 0 &&
+                      customNodes.length === 0 && (
+                        <p className="text-zinc-500 text-xs sm:text-sm">
+                          NO NODES AVAILABLE
+                        </p>
+                      )}
                   </div>
                 </div>
               )}
@@ -731,11 +918,20 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         <div className="my-1 border-t border-white/10 hidden sm:block" />
         <div className="space-y-2 sm:space-y-1">
           {view.nodes.map((node) => (
-            <div key={node.name} className="block sm:hidden border border-white/10 p-2 space-y-1">
+            <div
+              key={node.name}
+              className="block sm:hidden border border-white/10 p-2 space-y-1"
+            >
               <p className="truncate font-mono text-xs">{node.name}</p>
               <div className="flex items-center justify-between text-xs">
                 <p className="text-zinc-400">STATUS:</p>
-                <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online" : "text-status-offline"}>
+                <p
+                  className={
+                    node.status.toUpperCase() === "ONLINE"
+                      ? "text-status-online"
+                      : "text-status-offline"
+                  }
+                >
                   [ {node.status.toUpperCase()} ]
                 </p>
               </div>
@@ -753,15 +949,126 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
             {view.nodes.map((node) => (
               <div key={node.name} className="contents">
                 <p className="truncate font-mono">{node.name}</p>
-                <p className={node.status.toUpperCase() === "ONLINE" ? "text-status-online" : "text-status-offline"}>
+                <p
+                  className={
+                    node.status.toUpperCase() === "ONLINE"
+                      ? "text-status-online"
+                      : "text-status-offline"
+                  }
+                >
                   [ {node.status.toUpperCase()} ]
                 </p>
                 <p className="text-right">{formatPing(node.pingMs)}</p>
-                <p className="text-right">{"height" in node ? node.height.toLocaleString() : "N/A"}</p>
+                <p className="text-right">
+                  {"height" in node ? node.height.toLocaleString() : "N/A"}
+                </p>
               </div>
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="border border-white/10 rounded-none p-2 sm:p-4">
+        <div className="mb-2 flex items-center gap-1">
+          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
+            MARKETS
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              const nextPopup = openPopup === "status" ? null : "status";
+              setOpenPopup(nextPopup);
+            }}
+            className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
+            aria-label="Info about current Monero status"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-white"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+          </button>
+        </div>
+
+        {openPopup === "status" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="border border-white/20 rounded-none bg-black p-4 sm:p-6 max-w-sm w-full">
+              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                Market data provided by{" "}
+                <a
+                  href="https://www.coingecko.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-monero underline hover:opacity-80"
+                >
+                  CoinGecko
+                </a>
+                . Data is not investment advice. Always do your own research before making financial decisions.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setOpenPopup(null)}
+                className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view.xmrStatus ? (
+          <div className="grid grid-cols-1 sm:grid-cols-[16ch_1fr] gap-y-1 gap-x-2">
+            <p className="tracking-widest text-zinc-400">ASSET:</p>
+            <p className="text-right text-accent-monero">
+              {view.xmrStatus.name} ({view.xmrStatus.symbol})
+            </p>
+
+            <p className="tracking-widest text-zinc-400">PRICE:</p>
+            <p className="text-right">{view.xmrStatus.priceUsd}</p>
+
+            <p className="tracking-widest text-zinc-400">24H CHANGE:</p>
+            <p
+              className={`text-right ${view.xmrStatus.change24hPct >= 0 ? "text-status-online" : "text-status-offline"}`}
+            >
+              {formatSignedPercent(view.xmrStatus.change24hPct)}
+            </p>
+
+            <p className="tracking-widest text-zinc-400">30D CHANGE:</p>
+            <p
+              className={`text-right ${view.xmrStatus.change30dPct >= 0 ? "text-status-online" : "text-status-offline"}`}
+            >
+              {formatSignedPercent(view.xmrStatus.change30dPct)}
+            </p>
+
+            <p className="tracking-widest text-zinc-400">MARKET CAP:</p>
+            <p className="text-right">{view.xmrStatus.marketCapUsd}</p>
+
+            <p className="tracking-widest text-zinc-400">24H VOLUME:</p>
+            <p className="text-right">{view.xmrStatus.volume24hUsd}</p>
+
+            <p className="tracking-widest text-zinc-400">CIRC SUPPLY:</p>
+            <p className="text-right">{view.xmrStatus.circulatingSupply} XMR</p>
+
+            <p className="tracking-widest text-zinc-400">UPDATED:</p>
+            <p className="text-right">{view.xmrStatus.updatedAtAgo}</p>
+          </div>
+        ) : (
+          <p className="text-zinc-500 text-xs sm:text-sm">
+            NO MONERO STATUS DATA AVAILABLE
+          </p>
+        )}
       </section>
     </div>
   );
