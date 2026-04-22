@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { MoneroStats } from "@/types/monero";
 
-const BACKEND_REFRESH_MS = 90_000;
+const BACKEND_REFRESH_MS = 120_000;
 const FAST_POLL_MS = 2_000;
 const FALLBACK_POLL_MS = 20_000;
 
