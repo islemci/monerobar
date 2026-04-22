@@ -120,6 +120,26 @@ function formatRewardXmr(atomicUnits: number): string {
   return `${(atomicUnits / 1_000_000_000_000).toFixed(4)} XMR`;
 }
 
+function formatRewardWithUsd(
+  atomicUnits: number,
+  priceUsd: number | null | undefined,
+): string {
+  const rewardXmr = atomicUnits / 1_000_000_000_000;
+  const xmrValue = `${rewardXmr.toFixed(4)} XMR`;
+
+  if (!priceUsd || !Number.isFinite(priceUsd) || priceUsd <= 0) {
+    return xmrValue;
+  }
+
+  const rewardUsd = rewardXmr * priceUsd;
+  const usdValue = `$${rewardUsd.toLocaleString("en-US", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}`;
+
+  return `${xmrValue} (${usdValue})`;
+}
+
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
@@ -545,7 +565,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               height: block.height.toLocaleString(),
               age: formatEpochElapsedAgo(block.timestamp, nowMs),
               txes: block.numTxes,
-              reward: formatRewardXmr(block.reward),
+              reward: formatRewardWithUsd(block.reward, info?.market.priceUsd),
               difficulty: formatCompactNumber(block.difficulty),
               hash: formatShortHash(block.hash),
               isOrphan: block.orphanStatus,
@@ -872,7 +892,10 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                           <p>{block.height.toLocaleString()}</p>
                           <p>{block.numTxes}</p>
                           <p className="text-right text-zinc-400">
-                            {formatRewardXmr(block.reward)}
+                            {formatRewardWithUsd(
+                              block.reward,
+                              data?.info?.market.priceUsd,
+                            )}
                           </p>
                         </div>
                       ))}
