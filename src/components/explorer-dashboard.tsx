@@ -282,11 +282,6 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                       {block.difficulty.toLocaleString()} ({formatCompactDifficulty(block.difficulty)})
                     </p>
 
-                    <p className="tracking-widest text-zinc-400">CUMUL_DIFF:</p>
-                    <p className="text-zinc-300">
-                      {block.header.cumulativeDifficulty.toLocaleString()}
-                    </p>
-
                     <p className="tracking-widest text-zinc-400">BLOCK_WEIGHT:</p>
                     <p className="text-zinc-300">
                       {block.blockWeight.toLocaleString()} bytes ({formatSizeKb(block.blockWeight)})
@@ -300,9 +295,6 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
 
                     <p className="tracking-widest text-zinc-400">NONCE:</p>
                     <p className="text-zinc-300">{block.nonce.toLocaleString()}</p>
-
-                    <p className="tracking-widest text-zinc-400">DEPTH:</p>
-                    <p className="text-zinc-300">{block.header.depth}</p>
 
                     <p className="tracking-widest text-zinc-400">ORPHAN:</p>
                     <p className={block.header.orphanStatus ? "text-status-offline" : "text-status-online"}>
@@ -374,10 +366,6 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                       <span className="text-zinc-300">{block.nonce.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-400">DEPTH:</span>
-                      <span className="text-zinc-300">{block.header.depth}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">ORPHAN:</span>
                       <span className={block.header.orphanStatus ? "text-status-offline" : "text-status-online"}>
                         {block.header.orphanStatus ? "YES" : "NO"}
@@ -438,8 +426,7 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 <p>
                   This table shows the latest blocks in descending height.
                   Select a row to expand full block metadata including full
-                  hash, previous hash, cumulative difficulty, nonce, and orphan
-                  status.
+                  hash, previous hash, nonce, and orphan status.
                 </p>
                 <p>
                   Age updates every second relative to your current time, and

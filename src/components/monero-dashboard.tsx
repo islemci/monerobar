@@ -841,7 +841,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
 
           <Link
             href="/explorer"
-            className="inline-flex items-center gap-1 border border-white/20 px-2 py-1 text-[10px] sm:text-xs tracking-widest text-zinc-300 transition-colors hover:bg-white/10 hover:text-white whitespace-nowrap"
+            className="inline-flex items-center gap-1 border border-white/20 px-2 py-1 text-[10px] sm:text-xs tracking-widest text-zinc-300 transition-colors hover:border-accent-monero hover:bg-white/10 hover:text-accent-monero whitespace-nowrap"
             aria-label="Open blockchain explorer"
           >
             <span>BLOCKCHAIN EXPLORER</span>
