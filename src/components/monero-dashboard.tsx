@@ -94,6 +94,47 @@ function formatElapsedAgo(fromIso: string, nowMs: number): string {
   return `${seconds}s ago`;
 }
 
+function formatEpochElapsedAgo(timestampSeconds: number, nowMs: number): string {
+  if (!Number.isFinite(timestampSeconds) || timestampSeconds <= 0) {
+    return "N/A";
+  }
+
+  const sourceMs = timestampSeconds * 1000;
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - sourceMs) / 1000));
+  const hours = Math.floor(elapsedSeconds / 3_600);
+  const minutes = Math.floor((elapsedSeconds % 3_600) / 60);
+  const seconds = elapsedSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ago`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s ago`;
+  }
+
+  return `${seconds}s ago`;
+}
+
+function formatRewardXmr(atomicUnits: number): string {
+  return `${(atomicUnits / 1_000_000_000_000).toFixed(4)} XMR`;
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatShortHash(hash: string): string {
+  if (hash.length <= 20) {
+    return hash;
+  }
+
+  return `${hash.slice(0, 12)}...${hash.slice(-10)}`;
+}
+
 function normalizeNodeUrl(value: string): string | null {
   const trimmed = value.trim();
 
@@ -144,7 +185,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
     useNetworkData(initialData);
   const [nowMs, setNowMs] = useState(() => initialData?.updatedAt ?? 0);
   const [openPopup, setOpenPopup] = useState<
-    "pools" | "nodes" | "status" | null
+    "pools" | "nodes" | "blocks" | "status" | null
   >(null);
   const [popupTab, setPopupTab] = useState<"info" | "list">("info");
   const [customNodes, setCustomNodes] = useState<CustomTrackedNode[]>([]);
@@ -492,6 +533,26 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       updatedAgo: `${updateSeconds}s ago`,
       pools: poolList,
       nodes: mergedOnlineNodes,
+      chain: data.blocks
+        ? {
+          latestHeight: data.blocks.range.latestHeight.toLocaleString(),
+          count: data.blocks.range.count,
+          blocks: [...data.blocks.blocks]
+            .sort((a, b) => b.height - a.height)
+            .slice(0, 3)
+            .sort((a, b) => a.height - b.height)
+            .map((block) => ({
+              height: block.height.toLocaleString(),
+              age: formatEpochElapsedAgo(block.timestamp, nowMs),
+              txes: block.numTxes,
+              reward: formatRewardXmr(block.reward),
+              difficulty: formatCompactNumber(block.difficulty),
+              hash: formatShortHash(block.hash),
+              isOrphan: block.orphanStatus,
+              depth: block.depth,
+            })),
+        }
+        : null,
       xmrStatus: info
         ? {
           symbol: info.asset.symbol.toUpperCase(),
@@ -719,6 +780,146 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="border border-white/10 rounded-none p-2 sm:p-4">
+        <div className="mb-2 flex items-center gap-1">
+          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
+            BLOCKCHAIN
+          </p>
+          <button
+            onClick={() => {
+              const nextPopup = openPopup === "blocks" ? null : "blocks";
+              setOpenPopup(nextPopup);
+              if (nextPopup) {
+                setPopupTab("info");
+              }
+            }}
+            className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
+            aria-label="Info about blockchain"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-white"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+          </button>
+        </div>
+
+        {openPopup === "blocks" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="border border-white/20 rounded-none bg-black p-4 sm:p-6 max-w-sm w-full">
+              <div className="mb-3 flex border border-white/20">
+                <button
+                  onClick={() => setPopupTab("info")}
+                  className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "info"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  INFO
+                </button>
+                <button
+                  onClick={() => setPopupTab("list")}
+                  className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${popupTab === "list"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
+                    }`}
+                >
+                  LIST
+                </button>
+              </div>
+
+              {popupTab === "info" ? (
+                <>
+                  <h3 className="text-accent-monero tracking-widest font-mono mb-2 text-xs sm:text-sm">
+                    WHAT ARE BLOCKS?
+                  </h3>
+                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+                    Blocks are batches of confirmed Monero transactions added to
+                    the chain in sequence. Each new block extends the ledger,
+                    contributes to cumulative difficulty, and secures earlier
+                    history against reorganization.
+                  </p>
+                </>
+              ) : (
+                <div className="mb-4">
+                  <div className="grid grid-cols-[12ch_8ch_1fr] gap-2 border-b border-white/10 pb-1 text-zinc-400 text-xs sm:text-sm tracking-widest">
+                    <p>HEIGHT</p>
+                    <p>TX</p>
+                    <p className="text-right">REWARD</p>
+                  </div>
+                  <div className="mt-2 max-h-72 overflow-y-auto space-y-1">
+                    {(data?.blocks?.blocks ?? [])
+                      .slice()
+                      .sort((a, b) => b.height - a.height)
+                      .map((block) => (
+                        <div
+                          key={`popup-${block.height}`}
+                          className="grid grid-cols-[12ch_8ch_1fr] gap-2 text-xs sm:text-sm"
+                        >
+                          <p>{block.height.toLocaleString()}</p>
+                          <p>{block.numTxes}</p>
+                          <p className="text-right text-zinc-400">
+                            {formatRewardXmr(block.reward)}
+                          </p>
+                        </div>
+                      ))}
+                    {(data?.blocks?.blocks ?? []).length === 0 && (
+                      <p className="text-zinc-500 text-xs sm:text-sm">
+                        NO BLOCKS AVAILABLE
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setOpenPopup(null)}
+                className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view.chain && view.chain.blocks.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {view.chain.blocks.map((block) => (
+                <div
+                  key={block.height}
+                  className="border border-white/10 p-2 min-h-24 sm:min-h-28"
+                >
+                  <p className="truncate text-accent-monero text-xs sm:text-sm">
+                    {`[#${block.height}]${block.isOrphan ? " [ORPHAN]" : ""}`}
+                  </p>
+                  <p className="mt-2 text-zinc-300 text-xs sm:text-sm">{`AGE   ${block.age}`}</p>
+                  <p className="text-zinc-300 text-xs sm:text-sm">{`TX    ${block.txes}`}</p>
+                  <p className="mt-2 text-zinc-400 text-xs sm:text-sm">{`REWARD ${block.reward}`}</p>
+                  <p className="text-zinc-400 text-xs sm:text-sm">{`DIFF   ${block.difficulty}`}</p>
+                  <p className="mt-2 truncate text-zinc-500 text-xs sm:text-sm">{`HASH ${block.hash}`}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-zinc-500 text-xs sm:text-sm">
+            NO BLOCK DATA AVAILABLE
+          </p>
+        )}
       </section>
 
       <section className="border border-white/10 rounded-none p-2 sm:p-4">

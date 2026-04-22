@@ -52,6 +52,31 @@ export interface MoneroInfo {
   updatedAt: number;
 }
 
+export interface MoneroBlocksRange {
+  startHeight: number;
+  latestHeight: number;
+  count: number;
+}
+
+export interface MoneroBlock {
+  height: number;
+  timestamp: number;
+  difficulty: number;
+  reward: number;
+  numTxes: number;
+  hash: string;
+  orphanStatus: boolean;
+  depth: number;
+  cumulativeDifficulty: number;
+}
+
+export interface MoneroBlocks {
+  range: MoneroBlocksRange;
+  blocks: MoneroBlock[];
+  node: string;
+  updatedAt: number;
+}
+
 export interface MoneroStats {
   network: { height: number; hashrate: number; difficulty: number };
   nodes: Array<{
@@ -69,6 +94,7 @@ export interface MoneroStats {
     hashrate: number;
     status: string;
   }>;
+  blocks: MoneroBlocks | null;
   info: MoneroInfo | null;
   updatedAt: number;
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { Redis } from "@upstash/redis";
-import type { MoneroInfo, MoneroStats } from "@/types/monero";
+import type { MoneroBlocks, MoneroInfo, MoneroStats } from "@/types/monero";
 
 function asNumber(value: unknown, fallback = 0): number {
     const next = Number(value);
@@ -67,6 +67,7 @@ function parsePayload(payload: unknown): MoneroStats {
                 status: String(pool?.status ?? "unknown"),
             }))
             : [],
+        blocks: null,
         info: null,
         updatedAt: asNumber(value.updatedAt, Date.now()),
     };
@@ -134,11 +135,43 @@ function parseInfoPayload(payload: unknown): MoneroInfo {
     };
 }
 
+function parseBlocksPayload(payload: unknown): MoneroBlocks {
+    if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid monero:blocks payload");
+    }
+
+    const value = payload as Partial<MoneroBlocks>;
+
+    return {
+        range: {
+            startHeight: asNumber(value.range?.startHeight),
+            latestHeight: asNumber(value.range?.latestHeight),
+            count: Math.max(0, asNumber(value.range?.count)),
+        },
+        blocks: Array.isArray(value.blocks)
+            ? value.blocks.map((block) => ({
+                height: asNumber(block?.height),
+                timestamp: asNumber(block?.timestamp),
+                difficulty: asNumber(block?.difficulty),
+                reward: asNumber(block?.reward),
+                numTxes: Math.max(0, asNumber(block?.numTxes)),
+                hash: String(block?.hash ?? ""),
+                orphanStatus: asBoolean(block?.orphanStatus),
+                depth: Math.max(0, asNumber(block?.depth)),
+                cumulativeDifficulty: asNumber(block?.cumulativeDifficulty),
+            }))
+            : [],
+        node: String(value.node ?? ""),
+        updatedAt: asNumber(value.updatedAt, Date.now()),
+    };
+}
+
 export async function getNetworkStats(): Promise<MoneroStats> {
     const redis = Redis.fromEnv();
-    const [rawStats, rawInfo] = await Promise.all([
+    const [rawStats, rawInfo, rawBlocks] = await Promise.all([
         redis.get<unknown>("monero:stats"),
         redis.get<unknown>("monero:info"),
+        redis.get<unknown>("monero:blocks"),
     ]);
 
     if (!rawStats) {
@@ -149,18 +182,35 @@ export async function getNetworkStats(): Promise<MoneroStats> {
         typeof rawStats === "string" ? JSON.parse(rawStats) : rawStats;
     const stats = parsePayload(statsPayload);
 
+    let blocks: MoneroBlocks | null = null;
+
+    if (rawBlocks) {
+        try {
+            const blocksPayload =
+                typeof rawBlocks === "string" ? JSON.parse(rawBlocks) : rawBlocks;
+            blocks = parseBlocksPayload(blocksPayload);
+        } catch {
+            blocks = null;
+        }
+    }
+
+    const statsWithBlocks: MoneroStats = {
+        ...stats,
+        blocks,
+    };
+
     if (!rawInfo) {
-        return stats;
+        return statsWithBlocks;
     }
 
     try {
         const infoPayload =
             typeof rawInfo === "string" ? JSON.parse(rawInfo) : rawInfo;
         return {
-            ...stats,
+            ...statsWithBlocks,
             info: parseInfoPayload(infoPayload),
         };
     } catch {
-        return stats;
+        return statsWithBlocks;
     }
 }
