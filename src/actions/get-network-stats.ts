@@ -1,7 +1,29 @@
 "use server";
 
-import { Redis } from "@upstash/redis";
+import Redis from "ioredis";
 import type { MoneroBlocks, MoneroInfo, MoneroStats } from "@/types/monero";
+
+let redisClient: Redis | null = null;
+
+function getRedisClient(): Redis {
+    if (!redisClient) {
+        const redisUrl = process.env.REDIS_URL;
+
+        if (!redisUrl) {
+            throw new Error(
+                "REDIS_URL environment variable is not set. Provide a Redis connection URL.",
+            );
+        }
+
+        redisClient = new Redis(redisUrl, {
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+            enableReadyCheck: true,
+            maxRetriesPerRequest: null,
+        });
+    }
+
+    return redisClient;
+}
 
 function asNumber(value: unknown, fallback = 0): number {
     const next = Number(value);
@@ -167,11 +189,11 @@ function parseBlocksPayload(payload: unknown): MoneroBlocks {
 }
 
 export async function getNetworkStats(): Promise<MoneroStats> {
-    const redis = Redis.fromEnv();
+    const redis = getRedisClient();
     const [rawStats, rawInfo, rawBlocks] = await Promise.all([
-        redis.get<unknown>("monero:stats"),
-        redis.get<unknown>("monero:info"),
-        redis.get<unknown>("monero:blocks"),
+        redis.get("monero:stats"),
+        redis.get("monero:info"),
+        redis.get("monero:blocks"),
     ]);
 
     if (!rawStats) {
