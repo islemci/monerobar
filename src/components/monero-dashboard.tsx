@@ -1007,7 +1007,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
                 Market data provided by{" "}
                 <a
-                  href="https://www.coingecko.com/"
+                  href="https://www.coingecko.com/en/coins/monero"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-accent-monero underline hover:opacity-80"

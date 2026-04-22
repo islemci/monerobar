@@ -12,6 +12,7 @@ export function Footer() {
                 <div className="flex items-center justify-end gap-2 sm:gap-4">
                     <a
                         href="https://www.getmonero.org/"
+                        target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Visit getmonero.org"
                         className="group inline-flex items-center"
