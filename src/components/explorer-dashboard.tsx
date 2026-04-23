@@ -31,6 +31,53 @@ function formatShortHash(hash: string): string {
   return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
 }
 
+function getBlockObserverUrl(hash: string): string {
+  return `https://blocks.p2pool.observer/block/${hash}`;
+}
+
+function BlockHashLink({ hash }: { hash: string }) {
+  return (
+    <a
+      href={getBlockObserverUrl(hash)}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+      onClick={(event) => event.stopPropagation()}
+      aria-label={`Open block ${hash} on p2pool observer`}
+    >
+      <span className="truncate">{formatShortHash(hash)}</span>
+      <svg
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+        className="h-3.5 w-3.5 shrink-0"
+      >
+        <path
+          d="M11 4h5v5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16 4l-7 7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M14 10.5V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  );
+}
+
 function formatCompactDifficulty(value: number): string {
   if (value >= 1_000_000_000_000) {
     return `${(value / 1_000_000_000_000).toFixed(2)}T`;
@@ -240,11 +287,18 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
 
             return (
               <div key={block.height}>
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() =>
                     setExpandedBlock(isExpanded ? null : block.height)
                   }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setExpandedBlock(isExpanded ? null : block.height);
+                    }
+                  }}
                   className={`w-full grid grid-cols-[12ch_13ch_10ch_7ch_16ch_minmax(20ch,1fr)] gap-3 text-xs sm:text-sm py-1 text-left hover:bg-white/5 ${isExpanded ? "bg-white/5" : ""
                     }`}
                 >
@@ -263,10 +317,10 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                   <p className="text-right text-zinc-300">
                     {formatRewardXmr(block.reward)}
                   </p>
-                  <p className="text-right text-zinc-500 truncate">
-                    {formatShortHash(block.hash)}
+                  <p className="text-right text-zinc-500 truncate flex justify-end">
+                    <BlockHashLink hash={block.hash} />
                   </p>
-                </button>
+                </div>
 
                 {/* Expanded Details */}
                 {isExpanded && (
@@ -318,12 +372,19 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
             const isExpanded = expandedBlock === block.height;
 
             return (
-              <button
+              <div
                 key={block.height}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() =>
                   setExpandedBlock(isExpanded ? null : block.height)
                 }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setExpandedBlock(isExpanded ? null : block.height);
+                  }
+                }}
                 className={`w-full text-left border border-white/10 p-2 space-y-1 hover:bg-white/5 ${isExpanded ? "bg-white/5" : ""
                   }`}
               >
@@ -347,8 +408,8 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                   <span className="text-zinc-400">REWARD:</span>
                   <span>{formatRewardXmr(block.reward)}</span>
                 </div>
-                <p className="text-zinc-500 text-xs truncate">
-                  {formatShortHash(block.hash)}
+                <p className="text-zinc-500 text-xs truncate flex items-center gap-1">
+                  <BlockHashLink hash={block.hash} />
                 </p>
 
                 {isExpanded && (
@@ -385,7 +446,7 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                     </div>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
