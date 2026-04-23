@@ -633,38 +633,64 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       </section>
 
       <section className="border border-white/10 rounded-none p-2 sm:p-4">
-        <div className="mb-2 flex items-center gap-1">
-          <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
-            POOLS
-          </p>
-          <button
-            onClick={() => {
-              const nextPopup = openPopup === "pools" ? null : "pools";
-              setOpenPopup(nextPopup);
-              if (nextPopup) {
-                setPopupTab("info");
-              }
-            }}
-            className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
-            aria-label="Info about pools"
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <p className="tracking-widest text-zinc-400 text-xs sm:text-sm">
+              POOLS
+            </p>
+            <button
+              onClick={() => {
+                const nextPopup = openPopup === "pools" ? null : "pools";
+                setOpenPopup(nextPopup);
+                if (nextPopup) {
+                  setPopupTab("info");
+                }
+              }}
+              className="flex items-center justify-center w-5 h-5 hover:opacity-70 transition-opacity"
+              aria-label="Info about pools"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-white"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+            </button>
+          </div>
+
+          <Link
+            href="/pools"
+            className="inline-flex items-center gap-1 border border-white/20 px-2 py-1 text-[10px] sm:text-xs tracking-widest text-zinc-300 transition-colors hover:border-accent-monero hover:bg-white/10 hover:text-accent-monero whitespace-nowrap"
+            aria-label="Open pool explorer"
           >
+            <span>POOL EXPLORER</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
+              width="24"
+              height="24"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-white"
+              aria-hidden="true"
+              className="h-3 w-3"
             >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
             </svg>
-          </button>
+          </Link>
         </div>
 
         {openPopup === "pools" && (
