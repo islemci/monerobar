@@ -38,7 +38,7 @@ export default async function ExplorerPage() {
                 [ MONERO.BAR ]
               </span>
             </Link>
-            <span className="text-zinc-400 ml-2">/ EXPLORER</span>
+            <span className="text-zinc-400 ml-2">/ BLOCKS</span>
           </header>
           <Footer />
         </div>

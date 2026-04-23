@@ -840,11 +840,11 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
           </div>
 
           <Link
-            href="/explorer"
+            href="/blocks"
             className="inline-flex items-center gap-1 border border-white/20 px-2 py-1 text-[10px] sm:text-xs tracking-widest text-zinc-300 transition-colors hover:border-accent-monero hover:bg-white/10 hover:text-accent-monero whitespace-nowrap"
-            aria-label="Open blockchain explorer"
+            aria-label="Open block explorer"
           >
-            <span>BLOCKCHAIN EXPLORER</span>
+            <span>BLOCK EXPLORER</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
