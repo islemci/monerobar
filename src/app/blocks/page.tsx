@@ -1,10 +1,10 @@
-import Link from "next/link";
-import { ExplorerDashboard } from "@/components/explorer-dashboard";
-import { TuiContainer } from "@/components/tui/tui-container";
-import { Footer } from "@/components/footer";
-import { getExplorerData } from "@/actions/get-explorer-data";
-import type { ExplorerData } from "@/types/explorer";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { getExplorerData } from "@/actions/get-explorer-data";
+import { ExplorerDashboard } from "@/components/explorer-dashboard";
+import { Footer } from "@/components/footer";
+import { TuiContainer } from "@/components/tui/tui-container";
+import type { ExplorerData } from "@/types/explorer";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +30,7 @@ export default async function ExplorerPage() {
       <TuiContainer>
         <div className="mb-2 sm:mb-4 flex flex-col gap-2 border border-white/10 rounded-none p-2 sm:p-3 sm:flex-row sm:items-start sm:justify-between">
           <header className="font-mono text-xs sm:text-sm tracking-widest text-white text-left">
-            <Link
-              href="/"
-              className="hover:opacity-80"
-            >
+            <Link href="/" className="hover:opacity-80">
               <span className="bg-gradient-to-r from-accent-monero via-amber-300 to-[#fff1cc] bg-clip-text text-transparent">
                 [ MONERO.BAR ]
               </span>

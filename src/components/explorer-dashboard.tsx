@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ExplorerData } from "@/types/explorer";
 
@@ -391,6 +392,18 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                     <p className="text-zinc-300">
                       {new Date(block.timestamp * 1000).toUTCString()}
                     </p>
+
+                    <p className="tracking-widest text-zinc-400">
+                      DETAIL_PAGE:
+                    </p>
+                    <div className="sm:text-right">
+                      <Link
+                        href={`/blocks/${block.height}`}
+                        className="text-zinc-300 hover:text-accent-monero transition-colors"
+                      >
+                        OPEN BLOCK PAGE
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
@@ -404,46 +417,50 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
             const isExpanded = expandedBlock === block.height;
 
             return (
-              <button
+              <div
                 key={block.height}
-                type="button"
-                onClick={() =>
-                  setExpandedBlock(isExpanded ? null : block.height)
-                }
-                className={`w-full text-left border border-white/10 p-2 space-y-1 hover:bg-white/5 ${
+                className={`border border-white/10 ${
                   isExpanded ? "bg-white/5" : ""
                 }`}
               >
-                <p className="text-accent-monero text-xs font-mono">
-                  [#{block.height.toLocaleString()}]
-                  {block.header.orphanStatus ? " [ORPHAN]" : ""}
-                </p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">AGE:</span>
-                  <span>{formatAge(block.timestamp, nowMs)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">TXS:</span>
-                  <span>{block.txCount}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">SIZE:</span>
-                  <span>{formatSizeKb(block.blockWeight)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">REWARD:</span>
-                  <span>{formatRewardXmr(block.reward)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">SOLVER:</span>
-                  <span>{formatFinderLabel(block.finder)}</span>
-                </div>
-                <p className="text-zinc-500 text-xs truncate flex items-center gap-1">
-                  <BlockHashLink hash={block.hash} />
-                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedBlock(isExpanded ? null : block.height)
+                  }
+                  className="w-full text-left p-2 space-y-1 hover:bg-white/5"
+                >
+                  <p className="text-accent-monero text-xs font-mono">
+                    [#{block.height.toLocaleString()}]
+                    {block.header.orphanStatus ? " [ORPHAN]" : ""}
+                  </p>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">AGE:</span>
+                    <span>{formatAge(block.timestamp, nowMs)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">TXS:</span>
+                    <span>{block.txCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">SIZE:</span>
+                    <span>{formatSizeKb(block.blockWeight)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">REWARD:</span>
+                    <span>{formatRewardXmr(block.reward)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">SOLVER:</span>
+                    <span>{formatFinderLabel(block.finder)}</span>
+                  </div>
+                  <p className="text-zinc-500 text-xs truncate flex items-center gap-1">
+                    <BlockHashLink hash={block.hash} />
+                  </p>
+                </button>
 
                 {isExpanded && (
-                  <div className="mt-2 pt-2 border-t border-white/10 space-y-1">
+                  <div className="border-t border-white/10 px-2 pb-2 pt-2 space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">DIFFICULTY:</span>
                       <span className="text-zinc-300">
@@ -498,9 +515,18 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                         {new Date(block.timestamp * 1000).toUTCString()}
                       </p>
                     </div>
+                    <div className="text-xs">
+                      <p className="text-zinc-400 mb-0.5">DETAIL_PAGE:</p>
+                      <Link
+                        href={`/blocks/${block.height}`}
+                        className="text-zinc-300 hover:text-accent-monero transition-colors"
+                      >
+                        OPEN BLOCK PAGE
+                      </Link>
+                    </div>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -550,6 +576,10 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 <p>
                   Age updates every second relative to your current time, and
                   size is displayed in bytes/KB for quick scanning.
+                </p>
+                <p>
+                  The solver pool for older blocks might be unavailable as they
+                  are self reported by the pools themselves.
                 </p>
               </div>
             ) : (

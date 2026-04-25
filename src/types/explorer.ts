@@ -41,3 +41,22 @@ export interface ExplorerData {
   mode: string;
   updatedAt: number;
 }
+
+export interface ExplorerBlockDetail {
+  requestedId: string;
+  height: number;
+  hash: string;
+  prevHash: string;
+  timestamp: number;
+  difficulty: number;
+  reward: number;
+  rewardUsd: number | null;
+  txCount: number;
+  txHashes: string[];
+  minerTxHash: string | null;
+  finder: string | null;
+  blockWeight: number;
+  nonce: number;
+  sourceNode: string;
+  updatedAt: number;
+}
