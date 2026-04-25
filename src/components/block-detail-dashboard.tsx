@@ -50,9 +50,6 @@ function formatTimestampUtc(timestamp: number): string {
   }).format(new Date(timestamp * 1000));
 }
 
-function getBlockObserverUrl(hash: string): string {
-  return `https://blocks.p2pool.observer/block/${hash}`;
-}
 
 function getTransactionObserverUrl(hash: string): string {
   return `https://blocks.p2pool.observer/tx/${hash}`;
@@ -147,21 +144,21 @@ export function BlockDetailDashboard({ block }: BlockDetailDashboardProps) {
         <div className="border border-white/10 rounded-none p-2 sm:p-4">
           <p className="mb-2 tracking-widest text-zinc-400">EXPLORER LINKS</p>
           <div className="space-y-2 text-zinc-300">
+            <Link
+              href={`/blocks/${block.hash}`}
+              className="block border border-white/10 px-2 py-2 hover:border-accent-monero hover:text-accent-monero transition-colors"
+            >
+              BLOCK PERMALINK (HASH)
+            </Link>
+
             <a
-              href={getBlockObserverUrl(block.hash)}
+              href={`https://blocks.p2pool.observer/block/${block.hash}`}
               target="_blank"
               rel="noreferrer"
               className="block border border-white/10 px-2 py-2 hover:border-accent-monero hover:text-accent-monero transition-colors"
             >
-              OPEN BLOCK ON P2POOL OBSERVER
+              OPEN ON P2POOL OBSERVER
             </a>
-
-            <Link
-              href="/blocks"
-              className="block border border-white/10 px-2 py-2 hover:border-accent-monero hover:text-accent-monero transition-colors"
-            >
-              BACK TO BLOCK LIST
-            </Link>
           </div>
 
           <div className="mt-4 border-t border-white/10 pt-4">

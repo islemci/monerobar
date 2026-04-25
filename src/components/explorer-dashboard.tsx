@@ -32,19 +32,13 @@ function formatShortHash(hash: string): string {
   return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
 }
 
-function getBlockObserverUrl(hash: string): string {
-  return `https://blocks.p2pool.observer/block/${hash}`;
-}
-
 function BlockHashLink({ hash }: { hash: string }) {
   return (
-    <a
-      href={getBlockObserverUrl(hash)}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      href={`/blocks/${hash}`}
       className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
       onClick={(event) => event.stopPropagation()}
-      aria-label={`Open block ${hash} on p2pool observer`}
+      aria-label={`Open block ${hash} details`}
     >
       <span className="truncate">{formatShortHash(hash)}</span>
       <svg
@@ -75,7 +69,7 @@ function BlockHashLink({ hash }: { hash: string }) {
           strokeLinejoin="round"
         />
       </svg>
-    </a>
+    </Link>
   );
 }
 

@@ -580,6 +580,7 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               finder: formatFinderLabel(block.finder),
               difficulty: formatCompactNumber(block.difficulty),
               hash: formatShortHash(block.hash),
+              fullHash: block.hash,
               isOrphan: block.orphanStatus,
               depth: block.depth,
             })),
@@ -988,9 +989,29 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
               {view.chain.blocks.map((block) => (
                 <div
                   key={block.height}
-                  className="border border-white/10 p-2 min-h-24 sm:min-h-28"
+                  className="relative border border-white/10 p-2 min-h-24 sm:min-h-28 group"
                 >
-                  <p className="truncate text-accent-monero text-xs sm:text-sm">
+                  <Link
+                    href={`/blocks/${block.fullHash}`}
+                    className="absolute top-2 right-2 text-white hover:text-accent-monero transition-colors"
+                    aria-label={`View block ${block.height}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </Link>
+                  <p className="truncate pr-6 text-accent-monero text-xs sm:text-sm">
                     {`[#${block.height}]${block.isOrphan ? " [ORPHAN]" : ""}`}
                   </p>
                   <p className="mt-2 text-zinc-300 text-xs sm:text-sm">{`AGE   ${block.age}`}</p>
