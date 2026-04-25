@@ -16,6 +16,7 @@ export interface ExplorerBlockHeader {
 export interface ExplorerBlock {
   height: number;
   hash: string;
+  finder: string | null;
   timestamp: number;
   difficulty: number;
   reward: number;

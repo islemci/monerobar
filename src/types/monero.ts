@@ -65,6 +65,7 @@ export interface MoneroBlock {
   reward: number;
   numTxes: number;
   hash: string;
+  finder: string | null;
   orphanStatus: boolean;
   depth: number;
   cumulativeDifficulty: number;

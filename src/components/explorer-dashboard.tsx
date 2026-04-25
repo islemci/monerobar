@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ExplorerData } from "@/types/explorer";
 
 interface ExplorerDashboardProps {
@@ -120,6 +120,10 @@ function formatAge(timestampSeconds: number, nowMs: number): string {
   return `${seconds}s ago`;
 }
 
+function formatFinderLabel(finder: string | null): string {
+  return finder ?? "UNKNOWN";
+}
+
 const ITEMS_PER_PAGE = 25;
 
 export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
@@ -127,7 +131,9 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
   const [page, setPage] = useState(0);
   const [expandedBlock, setExpandedBlock] = useState<number | null>(null);
   const [isBlocksInfoOpen, setIsBlocksInfoOpen] = useState(false);
-  const [blocksInfoTab, setBlocksInfoTab] = useState<"info" | "glossary">("info");
+  const [blocksInfoTab, setBlocksInfoTab] = useState<"info" | "glossary">(
+    "info",
+  );
 
   // Tick the clock every second
   useEffect(() => {
@@ -146,7 +152,10 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
     return [...initialData.blocks].sort((a, b) => b.height - a.height);
   }, [initialData?.blocks]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedBlocks.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedBlocks.length / ITEMS_PER_PAGE),
+  );
   const currentPage = Math.min(page, totalPages - 1);
   const pageBlocks = sortedBlocks.slice(
     currentPage * ITEMS_PER_PAGE,
@@ -180,7 +189,8 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
 
           <p className="tracking-widest text-zinc-400">RANGE:</p>
           <p className="text-right">
-            {initialData.range.startHeight.toLocaleString()} → {initialData.range.latestHeight.toLocaleString()}
+            {initialData.range.startHeight.toLocaleString()} →{" "}
+            {initialData.range.latestHeight.toLocaleString()}
           </p>
 
           <p className="tracking-widest text-zinc-400">BLOCKS_LOADED:</p>
@@ -201,6 +211,7 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
               BLOCKS
             </p>
             <button
+              type="button"
               onClick={() => {
                 const nextOpen = !isBlocksInfoOpen;
                 setIsBlocksInfoOpen(nextOpen);
@@ -222,19 +233,20 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="text-white"
+                aria-hidden="true"
               >
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 16v-4" />
                 <path d="M12 8h.01" />
               </svg>
             </button>
-
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center gap-1 text-xs">
               <button
+                type="button"
                 onClick={() => setPage(0)}
                 disabled={currentPage === 0}
                 className="px-1.5 py-0.5 border border-white/20 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent tracking-widest"
@@ -242,6 +254,7 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 ««
               </button>
               <button
+                type="button"
                 onClick={() => setPage(Math.max(0, currentPage - 1))}
                 disabled={currentPage === 0}
                 className="px-1.5 py-0.5 border border-white/20 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent tracking-widest"
@@ -252,13 +265,17 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 {currentPage + 1}/{totalPages}
               </span>
               <button
-                onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
+                type="button"
+                onClick={() =>
+                  setPage(Math.min(totalPages - 1, currentPage + 1))
+                }
                 disabled={currentPage >= totalPages - 1}
                 className="px-1.5 py-0.5 border border-white/20 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent tracking-widest"
               >
                 »
               </button>
               <button
+                type="button"
                 onClick={() => setPage(totalPages - 1)}
                 disabled={currentPage >= totalPages - 1}
                 className="px-1.5 py-0.5 border border-white/20 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent tracking-widest"
@@ -270,12 +287,13 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
         </div>
 
         {/* Desktop Table Header */}
-        <div className="hidden sm:grid grid-cols-[12ch_13ch_10ch_7ch_16ch_minmax(20ch,1fr)] gap-3 tracking-widest text-zinc-400 text-xs sm:text-sm">
+        <div className="hidden sm:grid grid-cols-[12ch_13ch_10ch_7ch_14ch_12ch_minmax(18ch,1fr)] gap-3 tracking-widest text-zinc-400 text-xs sm:text-sm">
           <p>HEIGHT</p>
           <p>AGE</p>
           <p className="text-right">SIZE</p>
           <p className="text-right">TXS</p>
           <p className="text-right">REWARD</p>
+          <p className="text-right">SOLVER</p>
           <p className="text-right">HASH</p>
         </div>
         <div className="my-1 border-t border-white/10 hidden sm:block" />
@@ -287,20 +305,14 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
 
             return (
               <div key={block.height}>
-                <div
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
                   onClick={() =>
                     setExpandedBlock(isExpanded ? null : block.height)
                   }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setExpandedBlock(isExpanded ? null : block.height);
-                    }
-                  }}
-                  className={`w-full grid grid-cols-[12ch_13ch_10ch_7ch_16ch_minmax(20ch,1fr)] gap-3 text-xs sm:text-sm py-1 text-left hover:bg-white/5 ${isExpanded ? "bg-white/5" : ""
-                    }`}
+                  className={`w-full grid grid-cols-[12ch_13ch_10ch_7ch_14ch_12ch_minmax(18ch,1fr)] gap-3 text-xs sm:text-sm py-1 text-left hover:bg-white/5 ${
+                    isExpanded ? "bg-white/5" : ""
+                  }`}
                 >
                   <p className="text-accent-monero">
                     {block.height.toLocaleString()}
@@ -311,16 +323,17 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                   <p className="text-right text-zinc-300">
                     {formatSizeKb(block.blockWeight)}
                   </p>
-                  <p className="text-right text-white">
-                    {block.txCount}
-                  </p>
+                  <p className="text-right text-white">{block.txCount}</p>
                   <p className="text-right text-zinc-300">
                     {formatRewardXmr(block.reward)}
+                  </p>
+                  <p className="text-right text-zinc-400 truncate">
+                    {formatFinderLabel(block.finder)}
                   </p>
                   <p className="text-right text-zinc-500 truncate flex justify-end">
                     <BlockHashLink hash={block.hash} />
                   </p>
-                </div>
+                </button>
 
                 {/* Expanded Details */}
                 {isExpanded && (
@@ -331,27 +344,46 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                     <p className="tracking-widest text-zinc-400">PREV_HASH:</p>
                     <p className="text-zinc-300 break-all">{block.prevHash}</p>
 
-                    <p className="tracking-widest text-zinc-400">DIFFICULTY:</p>
+                    <p className="tracking-widest text-zinc-400">FINDER:</p>
                     <p className="text-zinc-300">
-                      {block.difficulty.toLocaleString()} ({formatCompactDifficulty(block.difficulty)})
+                      {formatFinderLabel(block.finder)}
                     </p>
 
-                    <p className="tracking-widest text-zinc-400">BLOCK_WEIGHT:</p>
+                    <p className="tracking-widest text-zinc-400">DIFFICULTY:</p>
                     <p className="text-zinc-300">
-                      {block.blockWeight.toLocaleString()} bytes ({formatSizeKb(block.blockWeight)})
+                      {block.difficulty.toLocaleString()} (
+                      {formatCompactDifficulty(block.difficulty)})
+                    </p>
+
+                    <p className="tracking-widest text-zinc-400">
+                      BLOCK_WEIGHT:
+                    </p>
+                    <p className="text-zinc-300">
+                      {block.blockWeight.toLocaleString()} bytes (
+                      {formatSizeKb(block.blockWeight)})
                     </p>
 
                     <p className="tracking-widest text-zinc-400">REWARD:</p>
-                    <p className="text-zinc-300">{formatRewardXmr(block.reward)}</p>
+                    <p className="text-zinc-300">
+                      {formatRewardXmr(block.reward)}
+                    </p>
 
                     <p className="tracking-widest text-zinc-400">TX_COUNT:</p>
                     <p className="text-zinc-300">{block.txCount}</p>
 
                     <p className="tracking-widest text-zinc-400">NONCE:</p>
-                    <p className="text-zinc-300">{block.nonce.toLocaleString()}</p>
+                    <p className="text-zinc-300">
+                      {block.nonce.toLocaleString()}
+                    </p>
 
                     <p className="tracking-widest text-zinc-400">ORPHAN:</p>
-                    <p className={block.header.orphanStatus ? "text-status-offline" : "text-status-online"}>
+                    <p
+                      className={
+                        block.header.orphanStatus
+                          ? "text-status-offline"
+                          : "text-status-online"
+                      }
+                    >
                       {block.header.orphanStatus ? "YES" : "NO"}
                     </p>
 
@@ -372,21 +404,15 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
             const isExpanded = expandedBlock === block.height;
 
             return (
-              <div
+              <button
                 key={block.height}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() =>
                   setExpandedBlock(isExpanded ? null : block.height)
                 }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setExpandedBlock(isExpanded ? null : block.height);
-                  }
-                }}
-                className={`w-full text-left border border-white/10 p-2 space-y-1 hover:bg-white/5 ${isExpanded ? "bg-white/5" : ""
-                  }`}
+                className={`w-full text-left border border-white/10 p-2 space-y-1 hover:bg-white/5 ${
+                  isExpanded ? "bg-white/5" : ""
+                }`}
               >
                 <p className="text-accent-monero text-xs font-mono">
                   [#{block.height.toLocaleString()}]
@@ -408,6 +434,10 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                   <span className="text-zinc-400">REWARD:</span>
                   <span>{formatRewardXmr(block.reward)}</span>
                 </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">SOLVER:</span>
+                  <span>{formatFinderLabel(block.finder)}</span>
+                </div>
                 <p className="text-zinc-500 text-xs truncate flex items-center gap-1">
                   <BlockHashLink hash={block.hash} />
                 </p>
@@ -416,37 +446,61 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                   <div className="mt-2 pt-2 border-t border-white/10 space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">DIFFICULTY:</span>
-                      <span className="text-zinc-300">{formatCompactDifficulty(block.difficulty)}</span>
+                      <span className="text-zinc-300">
+                        {formatCompactDifficulty(block.difficulty)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">WEIGHT:</span>
-                      <span className="text-zinc-300">{block.blockWeight.toLocaleString()} B</span>
+                      <span className="text-zinc-300">
+                        {block.blockWeight.toLocaleString()} B
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">NONCE:</span>
-                      <span className="text-zinc-300">{block.nonce.toLocaleString()}</span>
+                      <span className="text-zinc-300">
+                        {block.nonce.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-400">FINDER:</span>
+                      <span className="text-zinc-300">
+                        {formatFinderLabel(block.finder)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">ORPHAN:</span>
-                      <span className={block.header.orphanStatus ? "text-status-offline" : "text-status-online"}>
+                      <span
+                        className={
+                          block.header.orphanStatus
+                            ? "text-status-offline"
+                            : "text-status-online"
+                        }
+                      >
                         {block.header.orphanStatus ? "YES" : "NO"}
                       </span>
                     </div>
                     <div className="text-xs">
                       <p className="text-zinc-400 mb-0.5">FULL_HASH:</p>
-                      <p className="text-zinc-300 break-all text-[10px]">{block.hash}</p>
+                      <p className="text-zinc-300 break-all text-[10px]">
+                        {block.hash}
+                      </p>
                     </div>
                     <div className="text-xs">
                       <p className="text-zinc-400 mb-0.5">PREV_HASH:</p>
-                      <p className="text-zinc-300 break-all text-[10px]">{block.prevHash}</p>
+                      <p className="text-zinc-300 break-all text-[10px]">
+                        {block.prevHash}
+                      </p>
                     </div>
                     <div className="text-xs">
                       <p className="text-zinc-400 mb-0.5">TIMESTAMP:</p>
-                      <p className="text-zinc-300">{new Date(block.timestamp * 1000).toUTCString()}</p>
+                      <p className="text-zinc-300">
+                        {new Date(block.timestamp * 1000).toUTCString()}
+                      </p>
                     </div>
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -463,20 +517,24 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
           <div className="border border-white/20 rounded-none bg-black p-4 sm:p-6 max-w-2xl w-full">
             <div className="mb-3 flex border border-white/20">
               <button
+                type="button"
                 onClick={() => setBlocksInfoTab("info")}
-                className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${blocksInfoTab === "info"
-                  ? "bg-white/10 text-accent-monero"
-                  : "text-zinc-400 hover:bg-white/5"
-                  }`}
+                className={`flex-1 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${
+                  blocksInfoTab === "info"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
+                }`}
               >
                 INFO
               </button>
               <button
+                type="button"
                 onClick={() => setBlocksInfoTab("glossary")}
-                className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${blocksInfoTab === "glossary"
-                  ? "bg-white/10 text-accent-monero"
-                  : "text-zinc-400 hover:bg-white/5"
-                  }`}
+                className={`flex-1 border-l border-white/20 px-3 py-1 text-xs sm:text-sm tracking-widest transition-colors ${
+                  blocksInfoTab === "glossary"
+                    ? "bg-white/10 text-accent-monero"
+                    : "text-zinc-400 hover:bg-white/5"
+                }`}
               >
                 GLOSSARY
               </button>
@@ -499,55 +557,72 @@ export function ExplorerDashboard({ initialData }: ExplorerDashboardProps) {
                 <div>
                   <p className="text-accent-monero tracking-widest">HEIGHT</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    The sequential position of a block in the blockchain. Each new block increments the height by one.
+                    The sequential position of a block in the blockchain. Each
+                    new block increments the height by one.
                   </p>
                 </div>
                 <div>
-                  <p className="text-accent-monero tracking-widest">DIFFICULTY</p>
+                  <p className="text-accent-monero tracking-widest">
+                    DIFFICULTY
+                  </p>
                   <p className="text-zinc-400 leading-relaxed">
-                    A measure of how hard it is to mine a block. The network adjusts difficulty to maintain a ~2 minute block time.
+                    A measure of how hard it is to mine a block. The network
+                    adjusts difficulty to maintain a ~2 minute block time.
                   </p>
                 </div>
                 <div>
                   <p className="text-accent-monero tracking-widest">REWARD</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    The amount of XMR paid to the miner who successfully mines a block. This includes the base reward plus transaction fees.
+                    The amount of XMR paid to the miner who successfully mines a
+                    block. This includes the base reward plus transaction fees.
                   </p>
                 </div>
                 <div>
                   <p className="text-accent-monero tracking-widest">TX COUNT</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    The number of transactions included in the block. Blocks with 0 transactions contain only the coinbase (miner reward) transaction.
+                    The number of transactions included in the block. Blocks
+                    with 0 transactions contain only the coinbase (miner reward)
+                    transaction.
                   </p>
                 </div>
                 <div>
-                  <p className="text-accent-monero tracking-widest">BLOCK WEIGHT</p>
+                  <p className="text-accent-monero tracking-widest">
+                    BLOCK WEIGHT
+                  </p>
                   <p className="text-zinc-400 leading-relaxed">
-                    The size of the block in bytes. Monero uses a dynamic block size that adjusts based on demand, with a penalty for oversized blocks.
+                    The size of the block in bytes. Monero uses a dynamic block
+                    size that adjusts based on demand, with a penalty for
+                    oversized blocks.
                   </p>
                 </div>
                 <div>
                   <p className="text-accent-monero tracking-widest">NONCE</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    A number that miners iterate over when trying to find a valid block hash. It is part of the proof-of-work mechanism.
+                    A number that miners iterate over when trying to find a
+                    valid block hash. It is part of the proof-of-work mechanism.
                   </p>
                 </div>
                 <div>
                   <p className="text-accent-monero tracking-widest">HASH</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    A unique cryptographic fingerprint of the block. Each block references the hash of the previous block, forming the chain.
+                    A unique cryptographic fingerprint of the block. Each block
+                    references the hash of the previous block, forming the
+                    chain.
                   </p>
                 </div>
                 <div>
                   <p className="text-accent-monero tracking-widest">ORPHAN</p>
                   <p className="text-zinc-400 leading-relaxed">
-                    A valid block that was not included in the main chain, usually because another block at the same height was accepted first.
+                    A valid block that was not included in the main chain,
+                    usually because another block at the same height was
+                    accepted first.
                   </p>
                 </div>
               </div>
             )}
 
             <button
+              type="button"
               onClick={() => setIsBlocksInfoOpen(false)}
               className="w-full px-3 py-1 border border-white/20 hover:bg-white/10 transition-colors text-xs sm:text-sm tracking-widest"
             >
