@@ -108,14 +108,6 @@ export function PoolsList({ data }: PoolsListProps) {
                       {p.name}
                     </span>
                   </div>
-                  <Image
-                    src={isExpanded ? "/minimize.svg" : "/maximize.svg"}
-                    alt={isExpanded ? "Minimize" : "Maximize"}
-                    width={16}
-                    height={16}
-                    className="shrink-0 sm:hidden"
-                    style={{ filter: "invert(1) brightness(0.6)" }}
-                  />
                 </div>
 
                 {/* Distribution Bar - Hidden on Mobile */}
