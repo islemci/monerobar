@@ -192,22 +192,6 @@ function normalizeNodeUrl(value: string): string | null {
   }
 }
 
-function buildAsciiBar(percentage: number): string {
-  const total = 20;
-  const filled = Math.max(
-    0,
-    Math.min(total, Math.round((percentage / 100) * total)),
-  );
-  return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
-}
-function buildAsciiBarSmall(percentage: number): string {
-  const total = 8;
-  const filled = Math.max(
-    0,
-    Math.min(total, Math.round((percentage / 100) * total)),
-  );
-  return `[${"█".repeat(filled)}${"░".repeat(total - filled)}]`;
-}
 export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
   const { data, isLoading, isError, dataUpdatedAt } =
     useNetworkData(initialData);
@@ -506,8 +490,8 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
     }
 
     const sortedPools = [...data.pools].sort((a, b) => b.hashrate - a.hashrate);
-    const topPools = sortedPools.slice(0, 5);
-    const otherPools = sortedPools.slice(5);
+    const topPools = sortedPools.slice(0, 3);
+    const otherPools = sortedPools.slice(3);
 
     const poolList = topPools.map((pool) => {
       const percentage =
@@ -518,8 +502,6 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
       return {
         ...pool,
         percentage,
-        bar: buildAsciiBar(percentage),
-        barSmall: buildAsciiBarSmall(percentage),
       };
     });
 
@@ -536,8 +518,6 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
         hashrate: otherHashrate,
         status: "COMBINED",
         percentage: otherPercentage,
-        bar: buildAsciiBar(otherPercentage),
-        barSmall: buildAsciiBarSmall(otherPercentage),
       });
     }
 
@@ -829,10 +809,14 @@ export function MoneroDashboard({ initialData }: MoneroDashboardProps) {
                   {pool.name}
                 </span>
               )}
-              <span className="text-zinc-400 sm:hidden block mt-1">
-                {pool.barSmall}
-              </span>
-              <span className="text-zinc-400 hidden sm:block">{pool.bar}</span>
+              <div className="mt-2 sm:mt-0 sm:col-span-1">
+                <div className="h-2 sm:h-3 w-full overflow-hidden rounded-none border border-white/10 bg-white/10">
+                  <div
+                    className="h-full bg-accent-monero"
+                    style={{ width: `${Math.max(0, Math.min(100, pool.percentage))}%` }}
+                  />
+                </div>
+              </div>
               <span className="text-right text-white text-xs sm:text-sm block mt-1 sm:mt-0">
                 {pool.percentage.toFixed(1)}%
               </span>
